@@ -16,30 +16,23 @@ stacks_part1 = row_stacks.transpose.map(&:compact).map(&:reverse)
 stacks_part2 = stacks_part1.map(&:clone)
 
 # Mutates the stacks per instructions
-def execute_instructions(stacks, instruction)
-    instruction[0].times do
-        stacks[instruction[2]].push(stacks[instruction[1]].pop)
-    end
-end
 
 instructions.each do |instruction|
-    execute_instructions(stacks_part1, instruction)
+    instruction[0].times do
+        stacks_part1[instruction[2]].push(stacks_part1[instruction[1]].pop)
+    end
 end
 
 puts stacks_part1.map(&:pop).join
 
 ### PART 2 ###
 
-def execute_instructions_9001(stacks, instruction)
+instructions.each do |instruction|
     nmbr = instruction[0]
-    from_stack = stacks[instruction[1]]
-    to_stack = stacks[instruction[2]]
+    from_stack = stacks_part2[instruction[1]]
+    to_stack = stacks_part2[instruction[2]]
     slice = from_stack.slice!(from_stack.length-nmbr,from_stack.length)
     to_stack.concat(slice)
-end
-
-instructions.each do |instruction|
-    execute_instructions_9001(stacks_part2, instruction)
 end
 
 puts stacks_part2.map(&:pop).join
