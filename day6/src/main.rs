@@ -1,6 +1,6 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
-use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 
 fn detect_signal(count: usize) -> io::Result<i32> {
