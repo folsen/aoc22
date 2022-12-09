@@ -13,54 +13,23 @@ def add_pos(a,b)
     [a[0]+b[0], a[1]+b[1]]
 end
 
-# Used for part1 but then refactored out for part2
-#def neighbor(a,b)
-#    (a[0] - b[0]).abs <= 1 && (a[1] - b[1]).abs <= 1
-#end
-#
-#def reverse(dir)
-#    {"D" => "U", "U" => "D", "L" => "R", "R" => "L"}[dir]
-#end
+def neighbor(a,b)
+    (a[0] - b[0]).abs <= 1 && (a[1] - b[1]).abs <= 1
+end
 
 # Calculate what direction b needs to move to be neighbor to a
 # Returns [0,0] if no move is necessary
 def calc_move(a,b)
-    case [a[0] - b[0], a[1] - b[1]]
-    # Needs to move up
-    when [0,2] then [0,1]
-    # Needs to move down
-    when [0,-2] then [0,-1]
-    # Needs to move left
-    when [-2,0] then [-1,0]
-    # Needs to move right
-    when [2,0] then [1,0]
-    # Needs to move diagonally upleft 
-    when [-1,2] then [-1,1]
-    # Needs to move diagonally upright 
-    when [1,2] then [1,1]
-    # Needs to move diagonally downleft 
-    when [-1,-2] then [-1,-1]
-    # Needs to move diagonally downright 
-    when [1,-2] then [1,-1]
-    # Needs to move diagonally leftdown
-    when [-2,-1] then [-1, -1]
-    # Needs to move diagonally rightdown
-    when [2,-1] then [1, -1]
-    # Needs to move diagonally leftup
-    when [-2,1] then [-1, 1]
-    # Needs to move diagonally rightup
-    when [2,1] then [1, 1]
-    # Needs to move straight diagonally upleft
-    when [-2,2] then [-1, 1]
-    # Needs to move straight diagonally upright
-    when [2,2] then [1, 1]
-    # Needs to move straight diagonally downleft
-    when [-2,-2] then [-1, -1]
-    # Needs to move straight diagonally downright
-    when [2,-2] then [1, -1]
-    else
-        [0,0]
+    return [0,0] if neighbor(a,b)
+    x = a[0] - b[0]
+    y = a[1] - b[1]
+    if x.abs > 1
+        x = x/2 # -2 becomes -1 and 2 becomes 1
     end
+    if y.abs > 1
+        y = y/2
+    end
+    return [x, y]
 end
 
 pos_h = [0,0]
