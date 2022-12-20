@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
@@ -42,33 +42,23 @@ type State = (i32, (i32, i32, i32, i32), (i32, i32, i32, i32));
 
 // Resources are (ore, clay, obsidian, geode)
 // Robots are (ore, clay, obsidian, geode)
-fn find_optimal_geodes(
-    blueprint: &Blueprint,
-    resources: (i32, i32, i32, i32),
-    robots: (i32, i32, i32, i32),
-    minute: i32,
-    max_minutes: i32,
-) -> Vec<State> {
-    let mut queue: VecDeque<State> = VecDeque::from([(minute, resources, robots)]);
-    let mut results = Vec::new();
-    let mut seen: HashMap<((i32, i32, i32, i32), (i32, i32, i32, i32)), i32> = HashMap::new();
+fn find_optimal_geodes(blueprint: &Blueprint, max_minutes: i32) -> i32 {
+    let mut queue: VecDeque<State> = VecDeque::from([(1, (0, 0, 0, 0), (1, 0, 0, 0))]);
+    let mut best = 0;
+    let mut seen: HashSet<State> = HashSet::new();
     while !queue.is_empty() {
         let next = queue.pop_front().expect("Queue not empty");
         //println!("{:?}", next);
         let (m, (ore, clay, obsidian, geode), (orebot, claybot, obsidianbot, geodebot)) = next;
-        if seen.contains_key(&(next.1, next.2)) && seen[&(next.1, next.2)] <= m {
+        best = best.max(geode);
+        if seen.contains(&next) {
             continue;
         } else {
-            seen.insert((next.1, next.2).clone(), m);
+            seen.insert(next);
         }
         if m == max_minutes {
-            // Record any positive result if hit time
-            if geode > 0 {
-                results.push(next);
-            }
             continue;
         }
-        let q_len = queue.len();
         let new_re = (
             ore + orebot,
             clay + claybot,
@@ -76,32 +66,27 @@ fn find_optimal_geodes(
             geode + geodebot,
         );
 
-        // I want a steady stream of resources to max the geode bot production.
-        // Meaning at the end of the pipeline i need geode.0 and geode.1 ore and
-        // obsidian produces to make geode bots I need obsidian.0 ore and
-        // obsidian.1 clay to make clay bots continuously and then I need clay
-        // ore for the obsidian bots
+        let max_ore_consumption = [
+            blueprint.ore,
+            blueprint.clay,
+            blueprint.obsidian.0,
+            blueprint.geode.0,
+        ]
+        .iter()
+        .max()
+        .unwrap()
+        .clone();
+        let time_left = max_minutes - m - 1;
 
-        // So trickling down, we need no more than geode.1 obsidian bots
-        // no more than obsidian.1 clay bots
-        // and no more than (geode.0 + obsidian.0 + clay) ore bots
-        // Though realistically we will need quite a bit less than that because
-        // we won't reach that steady-state and might want to over- or
-        // under-produce bots to optimize.
-
-        let max_geode_ore_consumption =
-            blueprint.geode.0 * (max_minutes - m) + blueprint.obsidian.0 * (max_minutes - m);
-        let max_geode_clay_consumption = blueprint.obsidian.1 * (max_minutes - m);
+        // Save
+        queue.push_back((m + 1, new_re, next.2));
 
         // Build ore-bot
-        let ore_consumption = (blueprint.geode.0 * (geodebot + 1)
-            + blueprint.obsidian.0 * (obsidianbot + 1)
-            + blueprint.clay * (claybot + 1))
-            * (max_minutes - m);
-        let ore_production = orebot * (max_minutes - m) + ore;
+        let ore_consumption = max_ore_consumption * time_left;
+        let ore_production = orebot * time_left + ore;
         if ore >= blueprint.ore
+            && orebot <= max_ore_consumption
             && ore_production <= ore_consumption
-            && ore_production <= max_geode_ore_consumption
         {
             let updated_ores = (new_re.0 - blueprint.ore, new_re.1, new_re.2, new_re.3);
             let updated_bots = (orebot + 1, claybot, obsidianbot, geodebot);
@@ -109,12 +94,11 @@ fn find_optimal_geodes(
         }
 
         // Build clay bot
-        let clay_consumption =
-            blueprint.obsidian.1 * (obsidianbot + 1) * (max_minutes - m) + blueprint.obsidian.1;
-        let clay_production = claybot * (max_minutes - m) + clay;
+        let clay_consumption = blueprint.obsidian.1 * time_left;
+        let clay_production = claybot * time_left + clay;
         if ore >= blueprint.clay
+            && claybot <= blueprint.obsidian.1
             && clay_production <= clay_consumption
-            && clay_production <= max_geode_clay_consumption
         {
             let updated_ores = (new_re.0 - blueprint.clay, new_re.1, new_re.2, new_re.3);
             let updated_bots = (orebot, claybot + 1, obsidianbot, geodebot);
@@ -122,10 +106,11 @@ fn find_optimal_geodes(
         }
 
         // Build obisidian bot
-        let obsidian_consumption = blueprint.geode.1 * (geodebot + 1) * (max_minutes - m);
-        let obsidian_production = obsidianbot * (max_minutes - m) + obsidian;
+        let obsidian_consumption = blueprint.geode.1 * time_left;
+        let obsidian_production = obsidianbot * time_left + obsidian;
         if ore >= blueprint.obsidian.0
             && clay >= blueprint.obsidian.1
+            && obsidianbot <= blueprint.geode.1
             && obsidian_production <= obsidian_consumption
         {
             let updated_ores = (
@@ -148,28 +133,14 @@ fn find_optimal_geodes(
             let updated_bots = (orebot, claybot, obsidianbot, geodebot + 1);
             queue.push_back((m + 1, updated_ores, updated_bots));
         }
-        // If we can't do anything we need to save
-        // If we can spend on any of the above, then we have every option and shouldn't save
-        if q_len == queue.len() || queue.len() - q_len != 4 {
-            queue.push_back((m + 1, new_re, next.2));
-        }
-        //println!("{}", queue.len());
     }
-    results
+    best
 }
 
 fn part1(blueprints: &Vec<Blueprint>) {
     let mut res = 0;
     for b in blueprints {
-        println!("{:?}", b);
-        let all = find_optimal_geodes(&b, (0, 0, 0, 0), (1, 0, 0, 0), 1, 25);
-        let best = all.iter().max_by(|x, y| x.1 .3.cmp(&y.1 .3)).unwrap_or(&(
-            0,
-            (0, 0, 0, 0),
-            (0, 0, 0, 0),
-        ));
-        println!("geodes: {}", (best.1).3);
-        res += b.index * (best.1).3;
+        res += b.index * find_optimal_geodes(&b, 25);
     }
     println!("{:?}", res);
 }
@@ -177,22 +148,13 @@ fn part1(blueprints: &Vec<Blueprint>) {
 fn part2(blueprints: &Vec<Blueprint>) {
     let mut res = 1;
     for b in blueprints.iter().take(3) {
-        println!("{:?}", b);
-        let all = find_optimal_geodes(&b, (0, 0, 0, 0), (1, 0, 0, 0), 1, 32);
-        //println!("{:?}", all);
-        let best = all.iter().max_by(|x, y| x.1 .3.cmp(&y.1 .3)).unwrap_or(&(
-            0,
-            (0, 0, 0, 0),
-            (0, 0, 0, 0),
-        ));
-        println!("geodes: {}", (best.1).3);
-        res *= (best.1).3;
+        res *= find_optimal_geodes(&b, 33);
     }
     println!("{:?}", res);
 }
 
 fn main() {
-    let blueprints = read_input("sample.txt");
-    //part1(&blueprints);
+    let blueprints = read_input("input.txt");
+    part1(&blueprints);
     part2(&blueprints);
 }
