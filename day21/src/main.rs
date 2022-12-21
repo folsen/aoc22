@@ -26,42 +26,10 @@ fn read_input(file_name: &str) -> (Constants, Operators) {
     (constants, operators)
 }
 
-// Returns what "root" calculates
-fn solve1(input: &mut (Constants, Operators)) -> i128 {
-    let (constants, operators) = input;
-
-    while !operators.is_empty() {
-        for (monkey, (a, o, b)) in operators.iter_mut() {
-            if constants.contains_key(a) && constants.contains_key(b) {
-                let val = match &o[0..] {
-                    "+" => constants[a] + constants[b],
-                    "-" => constants[a] - constants[b],
-                    "*" => constants[a] * constants[b],
-                    "/" => constants[a] / constants[b],
-                    _ => 0,
-                };
-                constants.insert(monkey.clone(), val);
-            }
-        }
-        operators.retain(|k, _| !constants.contains_key(k));
-    }
-
-    constants["root".into()]
-}
-
-fn solve2(input: &mut (Constants, Operators)) -> i128 {
-    let (constants, operators) = input;
-
+fn solve(constants: &mut Constants, operators: &mut Operators) {
     while !operators.is_empty() {
         let in_len = operators.len();
         for (monkey, (a, o, b)) in operators.iter_mut() {
-            if *monkey == "humn".to_string()
-                || *monkey == "root".to_string()
-                || *a == "humn".to_string()
-                || *b == "humn".to_string()
-            {
-                continue;
-            }
             if constants.contains_key(a) && constants.contains_key(b) {
                 let val = match &o[0..] {
                     "+" => constants[a] + constants[b],
@@ -75,21 +43,13 @@ fn solve2(input: &mut (Constants, Operators)) -> i128 {
         }
         operators.retain(|k, _| !constants.contains_key(k));
         if in_len == operators.len() {
-            // We're not progressing anymore here
+            // We're not making any more progress, stop
             break;
         }
     }
-    let (left, _, right) = &operators[&"root".to_string()];
-    if let Some(num) = constants.get(left) {
-        constants.insert(right.clone(), *num);
-    }
-    if let Some(num) = constants.get(right) {
-        constants.insert(left.clone(), *num);
-    }
-    operators.remove(&"root".to_string());
-    constants.remove(&"humn".to_string());
+}
 
-    // Rewrite equations starting from human
+fn rewrite(constants: &mut Constants, operators: &mut Operators) {
     let mut to_rewrite = vec!["humn".to_string()];
     let mut rewritten: HashSet<String> = HashSet::new();
     while !to_rewrite.is_empty() {
@@ -146,64 +106,42 @@ fn solve2(input: &mut (Constants, Operators)) -> i128 {
             operators.remove(&x);
         }
     }
+}
 
-    loop {
-        let in_len = operators.len();
+fn solve1(constants: &mut Constants, operators: &mut Operators) -> i128 {
+    solve(constants, operators);
+    constants["root".into()]
+}
 
-        for (monkey, (a, o, b)) in operators.iter() {
-            let lookups = (constants.get(monkey), constants.get(a), constants.get(b));
-            match lookups {
-                (Some(lhs), Some(lrhs), None) => {
-                    let val = match &o[0..] {
-                        "+" => lhs - lrhs,
-                        "-" => lrhs - lhs,
-                        "*" => lhs / lrhs,
-                        "/" => lrhs / lhs,
-                        _ => 0,
-                    };
-                    constants.insert(a.clone(), val);
-                }
-                (Some(lhs), None, Some(rrhs)) => {
-                    let val = match &o[0..] {
-                        "+" => lhs - rrhs,
-                        "-" => lhs + rrhs,
-                        "*" => lhs / rrhs,
-                        "/" => lhs * rrhs,
-                        _ => 0,
-                    };
-                    constants.insert(b.clone(), val);
-                }
-                (None, Some(lrhs), Some(rrhs)) => {
-                    let val = match &o[0..] {
-                        "+" => lrhs + rrhs,
-                        "-" => lrhs - rrhs,
-                        "*" => lrhs * rrhs,
-                        "/" => lrhs / rrhs,
-                        _ => 0,
-                    };
-                    constants.insert(monkey.clone(), val);
-                }
-                _ => (),
-            }
-        }
-        operators.retain(|k, _| !constants.contains_key(k));
-        if in_len == operators.len() {
-            // We're not progressing anymore here
-            break;
-        }
+fn solve2(constants: &mut Constants, operators: &mut Operators) -> i128 {
+    constants.remove(&"humn".to_string());
+    solve(constants, operators);
+
+    let (left, _, right) = &operators[&"root".to_string()];
+    if let Some(num) = constants.get(left) {
+        constants.insert(right.clone(), *num);
     }
+    if let Some(num) = constants.get(right) {
+        constants.insert(left.clone(), *num);
+    }
+    operators.remove(&"root".to_string());
+
+    rewrite(constants, operators);
+    solve(constants, operators);
+
     constants["humn".into()]
 }
 
 fn main() {
-    let mut input = read_input("input.txt");
-    let mut input2 = input.clone();
+    let (mut constants, mut operators) = read_input("input.txt");
+    let mut constants2 = constants.clone();
+    let mut operators2 = operators.clone();
 
     // Part 1
-    let root = solve1(&mut input);
+    let root = solve1(&mut constants, &mut operators);
     println!("{:?}", root);
 
     // Part 2
-    let humn = solve2(&mut input2);
+    let humn = solve2(&mut constants2, &mut operators2);
     println!("{:?}", humn);
 }
