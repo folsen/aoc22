@@ -6,6 +6,23 @@ I only cheated on Day 12 because I didn't know the LCM trick and wouldn't have f
 
 Time was already scarce trying to do it during the month but got a bit too scarce towards the holidays as can be seen by the scoreboard xD
 
-## My final scoreboard
+At the start I just did the task in whatever programming language I felt like, sometimes two different ones, then when the tasks got harder I just stuck to doing them in Rust, so it's mostly Rust.
+
+### My final scoreboard
 
 ![scoreboard](scoreboard.png)
+
+### Code Stats
+
+```
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Rust                            19            182            113           2000
+Ruby                             9             72             31            402
+Haskell                          5             66              2            221
+-------------------------------------------------------------------------------
+SUM:                            33            320            146           2623
+-------------------------------------------------------------------------------
+```
+
